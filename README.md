@@ -1,2 +1,2 @@
 # Lightshop-Button
-Submodule for Drupal module lightshop
+Submodule for Drupal module lightshop.
