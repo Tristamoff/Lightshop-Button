@@ -1,0 +1,278 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: User
+ * Date: 15.01.2015
+ * Time: 21:32
+ */
+
+function lightshop_button_menu() {
+    $items = array();
+
+    $items['admin/config/lightshop/button'] = array(
+        'title' => 'Light Shop Button',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('lightshop_button_admin_settings'),
+        'access arguments' => array('administer site configuration'),
+        'description' => 'Settings of lightshop button.',
+        'file' => 'lightshop_button.admin.inc',
+        'type' => MENU_LOCAL_TASK,
+    );
+
+    $items['basket_button/add/%/%'] = array(
+        'page callback' => 'lightshop_button_add2basket',
+        'page arguments' => array(2, 3),// nid/coll_id
+        'access arguments' => array('use basket'),
+        'type' => MENU_CALLBACK,
+        'file' => 'lightshop_button.pages.inc',
+    );
+
+    return $items;
+}
+
+/**
+ * Check to add item to its absence in the basket.
+ */
+function _lightshop_button_in_basket($nid, $coll_id) {
+    if (isset($_SESSION['basket']['items'])) {
+        if ((isset($_SESSION['basket']['items'][$nid])) && (isset($_SESSION['basket']['items'][$nid]['coll_ids']))) {
+            if (in_array($coll_id, array_keys($_SESSION['basket']['items'][$nid]['coll_ids']))) {
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function lightshop_button_node_view($node, $view_mode, $langcode) {
+    if(variable_get('lbs_' . $node->type, 0) == 1) {
+        foreach($node->content as $field_name => $field_obj) {
+            if ((is_array($field_obj)) && (isset($field_obj['#field_type'])) && ($field_obj['#field_type'] == 'field_collection')) {
+                //это поле типа коллекция
+                if(variable_get('lbs_' . $node->type . '_FSETTINGS_' . $field_name, 0) == 1) {
+                    $coll_field = $node->$field_name;
+                    if (count($coll_field['und']) > 0) {
+                        $indexes = array_keys($coll_field['und']);
+                        foreach ($indexes as $ind) {
+                            $key = array_keys($node->content[$field_name][$ind]['entity']['field_collection_item']);
+                            $key = $key[0];
+
+                            //эта коллекция включена
+                            $build = array();
+                            if (_lightshop_button_in_basket($node->nid, $key)) {
+                                $build['add2basket_link'] = array(
+                                    '#markup' => '<span class="add2basket-link">' . t('Added to Basket') . '</span>',
+                                );
+                            }
+                            else {
+                                $build['add2basket_link'] = array(
+                                    '#type' => 'link',
+                                    '#title' => t('Add to Basket'),
+                                    '#href' => 'basket_button/add/' . $node->nid . '/' . $key . '/nojs/',
+                                    '#attributes' => array(
+                                        'rel' => 'nofollow',
+                                        'class' => array('add2basket-link'),
+                                    ),
+                                    '#options' => array(
+                                        'query' => drupal_get_destination(),
+                                    ),
+                                    '#ajax' => array(
+                                        'wrapper' => 'add2basket-link-' . $node->nid . '-' . $key,
+                                    ),
+                                );
+                            }
+                            $build['add2basket_link']['#prefix'] = '<div id="add2basket-link-' . $node->nid . '-' . $key . '" class="add2basket-link-container">';
+                            $build['add2basket_link']['#suffix'] = '</div>';
+                            $build['add2basket_link']['#attached'] = array(
+                                'css' => array(
+                                    drupal_get_path('module', 'lightshop') . '/theme/lightshop.css',
+                                ),
+                                'js' => array(
+                                    drupal_get_path('module', 'lightshop') . '/theme/lightshop.js',
+                                ),
+                            );
+
+                            $node->content[$field_name][$ind]['entity']['field_collection_item'][$key]['bbb'] = $build;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * Create a «add to basket» link for display in the node body.
+ */
+function lightshop_button_add2basket_link($nid, $coll_id) {
+    $build = array();
+    if (_lightshop_button_in_basket($nid, $coll_id)) {
+        $build['add2basket_link'] = array(
+            '#markup' => '<span class="add2basket-link">' . t('Added to Basket') . '</span>',
+        );
+    }
+    else {
+        $build['add2basket_link'] = array(
+            '#type' => 'link',
+            '#title' => t('Add to Basket'),
+            '#href' => 'basket/add/' . $nid . '/' . $coll_id . '/nojs/',
+            '#attributes' => array(
+                'rel' => 'nofollow',
+                'class' => array('add2basket-link'),
+            ),
+            '#options' => array(
+                'query' => drupal_get_destination(),
+            ),
+            '#ajax' => array(
+                'wrapper' => 'add2basket-link-' . $nid . '-' . $coll_id,
+            ),
+        );
+    }
+    $build['add2basket_link']['#prefix'] = '<div id="add2basket-link-' . $nid . '-' . $coll_id . '" class="add2basket-link-container">';
+    $build['add2basket_link']['#suffix'] = '</div>';
+    $build['add2basket_link']['#attached'] = array(
+        'css' => array(
+            drupal_get_path('module', 'lightshop') . '/theme/lightshop.css',
+        ),
+        'js' => array(
+            drupal_get_path('module', 'lightshop') . '/theme/lightshop.js',
+        ),
+    );
+    return render($build);
+}
+
+function lightshop_button_form_lightshop_basket_form_alter(&$form, &$form_state, $form_id) {
+    //товары в корзине
+    if (isset($_SESSION['basket'])) {
+        $form['actions']['update']['#submit'][] = 'lightshop_button_basket_form_submit';
+        foreach ($_SESSION['basket']['items'] as $nid => $data) {
+            if (isset($data['coll_ids'])) {
+                unset($form['items'][$nid]);
+                foreach ($data['coll_ids'] as $coll_id => $prod_count) {
+                    $coll = field_collection_item_load($coll_id);
+                    $ren = $coll->view('full');
+                    $ren = render($ren);
+                    $form['items'][$nid . '_' . $coll_id]['title'] = array(
+                        '#type' => 'link',
+                        '#title' => $data['title'],
+                        '#href' => 'node/' . $nid,
+                        '#suffix' => $ren,
+                    );
+                    if (isset($data['qty'])) {
+                        $form['items'][$nid . '_' . $coll_id]['qty'] = array(
+                            '#type' => 'textfield',
+                            '#default_value' => $prod_count,
+                            '#size' => 4,
+                            '#element_validate' => array('_lightshop_qty_element_validate'),
+                            '#attributes' => array(
+                                'class' => array('qty'),
+                            ),
+                        );
+                    }
+                    if (isset($data['price'])) {
+                        $price = ($data['price'] / (array_sum($data['coll_ids']))) * $data['coll_ids'][$coll_id];
+                        $form['items'][$nid . '_' . $coll_id]['price'] = array(
+                            '#markup' => _lightshop_get_price_numberformat($price),
+                            '#size' => 5,
+                        );
+                    }
+                    $form['items'][$nid . '_' . $coll_id]['del'] = array(
+                        '#type' => 'checkbox',
+                    );
+                }
+            } else {
+                $form['items'][$nid]['title'] = array(
+                    '#type' => 'link',
+                    '#title' => $data['title'],
+                    '#href' => 'node/' . $nid,
+                );
+                if (isset($prod_count)) {
+                    $form['items'][$nid]['qty'] = array(
+                        '#type' => 'textfield',
+                        '#default_value' => $prod_count,
+                        '#size' => 4,
+                        '#element_validate' => array('_lightshop_qty_element_validate'),
+                        '#attributes' => array(
+                            'class' => array('qty'),
+                        ),
+                    );
+                }
+                if (isset($data['price'])) {
+                    $form['items'][$nid]['price'] = array(
+                        '#markup' => _lightshop_get_price_numberformat($data['price']),
+                        '#size' => 5,
+                    );
+                }
+                $form['items'][$nid]['del'] = array(
+                    '#type' => 'checkbox',
+                );
+            }
+        }
+    }
+}
+
+function lightshop_button_basket_form_submit($form, &$form_state){
+    $values = $form_state['values']['items'];
+    $updated = FALSE;
+    foreach ($values as $key => $val) {
+        $key_arr = explode('_', $key);
+        if (count($key_arr) == 2) {
+            $key = $key_arr[0];
+            $coll_id = $key_arr[1];
+        }
+        if (variable_get('lightshop_show_qty', TRUE)){
+            if (isset($_SESSION['basket']['items'][$key]['coll_ids'])){
+                if ($_SESSION['basket']['items'][$key]['coll_ids'][$coll_id] != $val['qty']){
+                    //изменилось количество коллекций
+                    $_SESSION['basket']['items'][$key]['coll_ids'][$coll_id] = $val['qty'];
+                    if (variable_get('lightshop_show_price', FALSE)) {
+                        $count_items = array_sum($_SESSION['basket']['items'][$key]['coll_ids']);
+                        $_SESSION['basket']['items'][$key]['price'] = $count_items * $_SESSION['basket']['store'][$key]['unit_price'];
+                    }
+                    if($_SESSION['basket']['items'][$key]['title'] != '') {
+                        drupal_set_message(t('"%title": successfully updated', array(
+                            '%title' => $_SESSION['basket']['items'][$key]['title'],
+                        )));
+                    }
+                    $updated = TRUE;
+                }
+            }
+        }
+        if ($val['del']) {
+            drupal_set_message(t('"%title" was removed from your basket', array(
+                '%title' => $_SESSION['basket']['items'][$key]['title'],
+            )));
+            if((isset($coll_id))) {
+                unset($_SESSION['basket']['items'][$key]['coll_ids'][$coll_id]);
+            }
+            $updated = TRUE;
+        }
+        //подчищаем за модулем
+        if ((isset($coll_id)) && (isset($_SESSION['basket']['items'][$key . '_' . $coll_id]))) {
+            unset($_SESSION['basket']['items'][$key . '_' . $coll_id]);
+        }
+    }
+    if ($updated) {
+        $form_state['rebuild'] = TRUE;
+        _lightshop_update_total();
+    }
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ */
+function lightshop_button_theme_registry_alter(&$theme_registry) {
+    $theme_registry['lightshop_items_table']['path'] = drupal_get_path('module', 'lightshop_button') . '/theme';
+    $theme_registry['lightshop_items_table']['function'] = 'theme_lightshop_button_items_table';
+    $theme_registry['lightshop_items_table']['includes'][0] = drupal_get_path('module', 'lightshop_button') . '/theme/theme.inc';
+
+    $theme_registry['lightshop_mail_notice']['preprocess functions'][] = 'template_preprocess_lightshop_button_mail_notice';
+    $theme_registry['lightshop_mail_notice']['includes'][] = drupal_get_path('module', 'lightshop_button') . '/theme/theme.inc';
+
+    $theme_registry['lightshop_block_display']['preprocess functions'][] = 'template_preprocess_lightshop_button_block_display';
+    $theme_registry['lightshop_block_display']['includes'][] = drupal_get_path('module', 'lightshop_button') . '/theme/theme.inc';
+}

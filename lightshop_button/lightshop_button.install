@@ -1,0 +1,19 @@
+<?php
+
+/**
+ * Implements hook_uninstall().
+ */
+function lightshop_button_uninstall() {
+    $node_types = node_type_get_types();
+    foreach ($node_types as $ntype => $data) {
+        variable_del('lbs_' . $ntype);
+        $node_fields = field_info_instances('node', $ntype);
+        if(count($node_fields) > 0) {
+            foreach ($node_fields as $nfield) {
+                if ($nfield['widget']['module'] == 'field_collection') {
+                    variable_del('lbs_' . $ntype . '_FSETTINGS_' . $nfield['field_name']);
+                }
+            }
+        }
+    }
+}
