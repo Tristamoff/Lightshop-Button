@@ -51,7 +51,8 @@ function lightshop_button_buy_form($form, &$form_state){
 	);
 	$form['count'] = array(
 		'#type' => 'textfield',
-		'#title' => 'Количество'
+		'#title' => 'Количество',
+        '#default_value' => 1
 	);
 	
 	$form['submit'] = array(
@@ -79,6 +80,9 @@ function lightshop_button_buy_form($form, &$form_state){
 function lightshop_button_buy_form_callback($form, $form_state){
 	list($form, $form_state) = ajax_get_form();
 	$count = (int) $form_state['input']['count'];
+    if($count == 0) {
+        $count = 1;
+    }
 	$nc_arr = explode('_', $form_state['input']['nid_coll_id']);
 	if (count($nc_arr) == 2) {
 		$nid = (int) $nc_arr[0];
