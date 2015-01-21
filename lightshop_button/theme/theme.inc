@@ -107,7 +107,7 @@ function template_preprocess_lightshop_button_block_display(&$vars, $hook){
         }
     }
 
-    $vars['count_items'] = $basket_items ? count($_SESSION['basket']['items']) : 0;
+    $vars['count_items'] = $count_items;
 
     $items_list = array(
         '#theme' => 'fieldset',

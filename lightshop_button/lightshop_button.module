@@ -18,14 +18,13 @@ function lightshop_button_menu() {
         'file' => 'lightshop_button.admin.inc',
         'type' => MENU_LOCAL_TASK,
     );
-
-    $items['basket_button/add/%/%'] = array(
-        'page callback' => 'lightshop_button_add2basket',
-        'page arguments' => array(2, 3),// nid/coll_id
-        'access arguments' => array('use basket'),
-        'type' => MENU_CALLBACK,
-        'file' => 'lightshop_button.pages.inc',
-    );
+	$items['basket_button/ajax_add'] = array(
+		'page callback' => 'lightshop_button_buy_form_callback',
+		'access callback' => TRUE,
+		'type' => MENU_CALLBACK,
+		'delivery callback' => 'ajax_deliver',
+		'theme callback' => 'ajax_base_page_theme',
+	);
 
     return $items;
 }
@@ -42,6 +41,114 @@ function _lightshop_button_in_basket($nid, $coll_id) {
         }
     }
     return FALSE;
+}
+
+function lightshop_button_buy_form($form, &$form_state){
+	$args = func_get_args();
+	$form['nid_coll_id'] = array(
+		'#type' => 'hidden',
+		'#value' => $args[2] . '_' . $args[3]//nid_coll_id
+	);
+	$form['count'] = array(
+		'#type' => 'textfield',
+		'#title' => 'Количество'
+	);
+	
+	$form['submit'] = array(
+	   '#type' => 'submit',
+		'#value' => t('Submit'),
+		'#attributes' => array(
+			'class' => array('add2basket-link')
+		)
+	);
+	$form['#prefix'] = '<div class="buy-ajax-form buy-ajax-form-' . $args[2] . '-' . $args[3] . '">';
+	$form['#suffix'] = '</div>';
+	$form['#attached']['css'] = array(drupal_get_path('module', 'lightshop_button') . '/theme/ajax_button.css');
+	$form['#attached']['js'] = array(
+		drupal_get_path('module', 'lightshop') . '/theme/lightshop.js',
+		drupal_get_path('module', 'lightshop_button') . '/theme/lightshop_button_count.js'
+	);
+	
+	$form['submit']['#ajax'] = array(
+      'path' => 'basket_button/ajax_add',
+    );
+
+	return $form;
+}
+
+function lightshop_button_buy_form_callback($form, $form_state){
+	list($form, $form_state) = ajax_get_form();
+	$count = (int) $form_state['input']['count'];
+	$nc_arr = explode('_', $form_state['input']['nid_coll_id']);
+	if (count($nc_arr) == 2) {
+		$nid = (int) $nc_arr[0];
+		$coll_id = (int) $nc_arr[1];
+		
+		$node = node_load($nid);
+
+		// Verification of the absence of this node in basket.
+		if (_lightshop_button_in_basket($node->nid, $coll_id)) {
+			drupal_set_message(t('"@title" is already in your basket', array('@title' => $node->title)
+			), 'warning');
+		}
+		else {
+			global $user;
+			if ($user->uid == 0 && !drupal_session_started()) {
+				// Must initialize sessions for anonymous users.
+				drupal_session_start();
+			}
+			$item = array();
+			if($count > 0) {
+				$item['coll_ids'] = array((int) $coll_id => $count);
+			}
+			
+			$item['title'] = $node->title;
+			if (variable_get('lightshop_show_qty', TRUE)) {
+				$item['qty'] = 1;
+			}
+			if (variable_get('lightshop_show_price', FALSE) && ($price = _lightshop_get_price($node))) {
+				if ($price <= 0 || !is_numeric($price)
+				) {
+					drupal_set_message(t('Sorry, but this product currently unavailable for ordering'), 'warning');
+					$item = FALSE;
+				}
+				else {
+					if (!isset($_SESSION['basket']['currency'])) {
+						$_SESSION['basket']['currency'] = variable_get('lightshop_price_suffix', '');
+					}
+					if (!isset($_SESSION['basket']['total_sum'])) {
+						$_SESSION['basket']['total_sum'] = 0;
+					}
+
+					$_SESSION['basket']['store'][$node->nid]['unit_price'] = $price;
+					$item['price'] = ($price * $count);// = $price;
+					$_SESSION['basket']['total_sum'] += $item['price'];
+				}
+			}
+			
+			if ($item) {
+				if(!$_SESSION['basket']['items'][$node->nid]) {
+					//print_r($item);
+					$_SESSION['basket']['items'][$node->nid] = $item;
+				}
+				else {
+					if($count > 0) {
+						$_SESSION['basket']['items'][$node->nid]['coll_ids'][(int) $coll_id] = $count;
+					}
+					$_SESSION['basket']['items'][$node->nid]['price'] += $item['price'];
+				}
+				drupal_set_message(t("'@title' added in your basket", array('@title' => $node->title)));
+			}
+			
+			$basket_block = lightshop_block_content();
+			$commands = array();
+			$commands[] = ajax_command_replace('#lightshop-ajax-block-content', render($basket_block));
+			$commands[] = ajax_command_replace('.buy-ajax-form-' . $nid . '-' . $coll_id . '', lightshop_button_add2basket_link($node->nid, $coll_id, $count));
+			$output = array('#type' => 'ajax', '#commands' => $commands);
+			return array('#type' => 'ajax', '#commands' => $commands);	
+		}
+	}
+	return $form['count'];
 }
 
 /**
@@ -68,33 +175,8 @@ function lightshop_button_node_view($node, $view_mode, $langcode) {
                                 );
                             }
                             else {
-                                $build['add2basket_link'] = array(
-                                    '#type' => 'link',
-                                    '#title' => t('Add to Basket'),
-                                    '#href' => 'basket_button/add/' . $node->nid . '/' . $key . '/nojs/',
-                                    '#attributes' => array(
-                                        'rel' => 'nofollow',
-                                        'class' => array('add2basket-link'),
-                                    ),
-                                    '#options' => array(
-                                        'query' => drupal_get_destination(),
-                                    ),
-                                    '#ajax' => array(
-                                        'wrapper' => 'add2basket-link-' . $node->nid . '-' . $key,
-                                    ),
-                                );
+								$build = drupal_get_form('lightshop_button_buy_form',$node->nid,$key);
                             }
-                            $build['add2basket_link']['#prefix'] = '<div id="add2basket-link-' . $node->nid . '-' . $key . '" class="add2basket-link-container">';
-                            $build['add2basket_link']['#suffix'] = '</div>';
-                            $build['add2basket_link']['#attached'] = array(
-                                'css' => array(
-                                    drupal_get_path('module', 'lightshop') . '/theme/lightshop.css',
-                                ),
-                                'js' => array(
-                                    drupal_get_path('module', 'lightshop') . '/theme/lightshop.js',
-                                ),
-                            );
-
                             $node->content[$field_name][$ind]['entity']['field_collection_item'][$key]['bbb'] = $build;
                         }
                     }
@@ -108,7 +190,7 @@ function lightshop_button_node_view($node, $view_mode, $langcode) {
 /**
  * Create a «add to basket» link for display in the node body.
  */
-function lightshop_button_add2basket_link($nid, $coll_id) {
+function lightshop_button_add2basket_link($nid, $coll_id, $count) {
     $build = array();
     if (_lightshop_button_in_basket($nid, $coll_id)) {
         $build['add2basket_link'] = array(
@@ -248,6 +330,24 @@ function lightshop_button_basket_form_submit($form, &$form_state){
             )));
             if((isset($coll_id))) {
                 unset($_SESSION['basket']['items'][$key]['coll_ids'][$coll_id]);
+				if(count($_SESSION['basket']['items'][$key]['coll_ids']) == 0) {
+					unset($_SESSION['basket']['items'][$key]);
+				}
+				//считаем сумму всех товаров
+				if (count($_SESSION['basket']['items']) == 0) {
+					$_SESSION['basket']['total_sum'] = 0;
+				}
+				else {
+					foreach ($_SESSION['basket']['items'] as $key => $item) {
+						$counts = array_sum($item['coll_ids']);
+						$prod_price = (int) $counts * (int) $_SESSION['basket']['store'][$key]['unit_price'];
+						$_SESSION['basket']['items'][$key]['price'] = $prod_price;
+					}
+					$_SESSION['basket']['total_sum'] = 0;
+					foreach ($_SESSION['basket']['items'] as $key => $item) {
+						$_SESSION['basket']['total_sum'] += $item['price'];
+					}
+				}
             }
             $updated = TRUE;
         }
