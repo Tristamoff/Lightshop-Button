@@ -166,8 +166,13 @@ function lightshop_button_node_view($node, $view_mode, $langcode) {
                     if (count($coll_field['und']) > 0) {
                         $indexes = array_keys($coll_field['und']);
                         foreach ($indexes as $ind) {
-                            $key = array_keys($node->content[$field_name][$ind]['entity']['field_collection_item']);
-                            $key = $key[0];
+							if($node->content[$field_name]['#formatter'] == 'field_collection_table_view') {
+								$key = $node->content[$field_name]['#items'][$ind]['value'];
+							}
+							else {
+								$key = array_keys($node->content[$field_name][$ind]['entity']['field_collection_item']);
+								$key = $key[0];
+							}
 
                             //эта коллекция включена
                             $build = array();
@@ -179,7 +184,12 @@ function lightshop_button_node_view($node, $view_mode, $langcode) {
                             else {
                                 $build = drupal_get_form('lightshop_button_buy_form',$node->nid,$key);
                             }
-                            $node->content[$field_name][$ind]['entity']['field_collection_item'][$key]['bbb'] = $build;
+							if($node->content[$field_name]['#formatter'] == 'field_collection_table_view') {
+								$node->content[$field_name][0]['#rows'][$ind]['data'][] = array('data' => $build);
+							}
+							else{
+								$node->content[$field_name][$ind]['entity']['field_collection_item'][$key]['bbb'] = $build;
+							}
                         }
                     }
                 }
