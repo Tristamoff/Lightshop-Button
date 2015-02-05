@@ -140,7 +140,8 @@ function lightshop_button_buy_form_callback($form, $form_state){
                     }
                     $_SESSION['basket']['items'][$node->nid]['price'] += $item['price'];
                 }
-                drupal_set_message(t("'@title' added in your basket", array('@title' => $node->title)));
+				// Notice
+                //drupal_set_message(t("'@title' added in your basket", array('@title' => $node->title)));
             }
 
             $basket_block = lightshop_block_content();
