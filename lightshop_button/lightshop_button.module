@@ -338,9 +338,10 @@ function lightshop_button_basket_form_submit($form, &$form_state){
             }
         }
         if ($val['del']) {
+			/* Notice
             drupal_set_message(t('"%title" was removed from your basket', array(
                 '%title' => $_SESSION['basket']['items'][$key]['title'],
-            )));
+            )));*/
             if((isset($coll_id))) {
                 unset($_SESSION['basket']['items'][$key]['coll_ids'][$coll_id]);
                 if(count($_SESSION['basket']['items'][$key]['coll_ids']) == 0) {
