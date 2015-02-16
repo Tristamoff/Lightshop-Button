@@ -72,7 +72,6 @@ function template_preprocess_lightshop_button_mail_notice(&$vars, $hook) {
     $vars['order_items'] = '';
 	$prod_type = variable_get('lightshop_node_types', array());
     foreach ($node->order_items['items'] as $item) {
-        // доделать, не совсем красивое письмо выходит
         $output = '';
         if (isset($item['coll_ids'])) {
 			$coll_ids = array_keys($item['coll_ids']);
@@ -82,8 +81,10 @@ function template_preprocess_lightshop_button_mail_notice(&$vars, $hook) {
 				$coll_objects = array_values($coll_obj_ent);
 				foreach ($coll_objects[0] as $field_name => $field) {
 					if(substr($field_name, 0, 6) == 'field_') {
-						$coll_info = field_info_instance('field_collection_item', $field_name, $coll_obj->field_name);
-						$output .= $coll_info['label'] . ':' . $field['und'][0]['value'] . ".\n";
+						$coll_info = field_info_instance('field_collection_item', $field_name, $coll_objects[0]->field_name);
+						if((isset($coll_info['label'])) && (isset($field['und'][0]['value']))) {
+							$output .= $coll_info['label'] . ':' . $field['und'][0]['value'] . ".\n";
+						}
 					}
 				}
 				//количество
