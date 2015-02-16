@@ -92,8 +92,7 @@ function lightshop_button_buy_form_callback($form, $form_state){
 
         // Verification of the absence of this node in basket.
         if (_lightshop_button_in_basket($node->nid, $coll_id)) {
-            drupal_set_message(t('"@title" is already in your basket', array('@title' => $node->title)
-            ), 'warning');
+            //drupal_set_message(t('"@title" is already in your basket', array('@title' => $node->title)), 'warning');
         }
         else {
             global $user;
@@ -113,7 +112,7 @@ function lightshop_button_buy_form_callback($form, $form_state){
             if (variable_get('lightshop_show_price', FALSE) && ($price = _lightshop_get_price($node))) {
                 if ($price <= 0 || !is_numeric($price)
                 ) {
-                    drupal_set_message(t('Sorry, but this product currently unavailable for ordering'), 'warning');
+                    //drupal_set_message(t('Sorry, but this product currently unavailable for ordering'), 'warning');
                     $item = FALSE;
                 }
                 else {
@@ -329,9 +328,9 @@ function lightshop_button_basket_form_submit($form, &$form_state){
                         $_SESSION['basket']['items'][$key]['price'] = $count_items * $_SESSION['basket']['store'][$key]['unit_price'];
                     }
                     if($_SESSION['basket']['items'][$key]['title'] != '') {
-                        drupal_set_message(t('"%title": successfully updated', array(
+                        /*drupal_set_message(t('"%title": successfully updated', array(
                             '%title' => $_SESSION['basket']['items'][$key]['title'],
-                        )));
+                        )));*/
                     }
                     $updated = TRUE;
                 }
