@@ -76,7 +76,7 @@ function template_preprocess_lightshop_button_mail_notice(&$vars, $hook) {
         if (isset($item['coll_ids'])) {
 			$coll_ids = array_keys($item['coll_ids']);
 			foreach ($coll_ids as $coll_id) {
-				$output .= l($item['title'], 'node/' . $nid, array('html' => TRUE)) . ":\n";
+				$output .= $item['title'] . ' (' . url('node/' . $nid, array('absolute' => TRUE)) . ')' . ":\n";
 				$coll_obj_ent = entity_load('field_collection_item', array($coll_id));
 				$coll_objects = array_values($coll_obj_ent);
 				foreach ($coll_objects[0] as $field_name => $field) {
@@ -97,10 +97,10 @@ function template_preprocess_lightshop_button_mail_notice(&$vars, $hook) {
 					}
 				}
 			}
-            $output .= l($item['title'], 'node/' . $nid, array('html' => TRUE)) . ' | ' . t('qty: @qty', array('@qty' => array_sum($item['coll_ids'])));
+            $output .= $item['title'] . ' (' . url('node/' . $nid, array('absolute' => TRUE)) . ')' . ' | ' . t('qty: @qty', array('@qty' => array_sum($item['coll_ids'])));
         }
         else if (isset($item['qty'])) {
-            $output .= l($item['title'], 'node/' . $nid, array('html' => TRUE)) . ' | ' . t('qty: @qty', array('@qty' => $item['qty']));
+            $output .= $item['title'] . ' (' . url('node/' . $nid, array('absolute' => TRUE)) . ')' . ' | ' . t('qty: @qty', array('@qty' => $item['qty']));
         }
         if (isset($item['price'])) {
             $output .= ' | ' . t('price: @price ', array('@price' => _lightshop_get_price_numberformat($item['price'])));
