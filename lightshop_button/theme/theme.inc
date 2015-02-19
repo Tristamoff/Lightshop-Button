@@ -70,7 +70,6 @@ function theme_lightshop_button_items_table($vars) {
 function template_preprocess_lightshop_button_mail_notice(&$vars, $hook) {
     $node = $vars['node'];
     $vars['order_items'] = '';
-	$prod_type = variable_get('lightshop_node_types', array());
     foreach ($node->order_items['items'] as $nid => $item) {
         $output = '';
         if (isset($item['coll_ids'])) {
@@ -97,14 +96,14 @@ function template_preprocess_lightshop_button_mail_notice(&$vars, $hook) {
 					}
 				}
 			}
-            $output .= $item['title'] . ' (' . url('node/' . $nid, array('absolute' => TRUE)) . ')' . ' | ' . t('qty: @qty', array('@qty' => array_sum($item['coll_ids'])));
         }
         else if (isset($item['qty'])) {
             $output .= $item['title'] . ' (' . url('node/' . $nid, array('absolute' => TRUE)) . ')' . ' | ' . t('qty: @qty', array('@qty' => $item['qty']));
         }
         if (isset($item['price'])) {
-            $output .= ' | ' . t('price: @price ', array('@price' => _lightshop_get_price_numberformat($item['price'])));
+            $output .= t('price: @price ', array('@price' => _lightshop_get_price_numberformat($item['price'])));
         }
+		$output .= "\n";
         $vars['order_items'] .= $output . "\n" ;
     }
 }
