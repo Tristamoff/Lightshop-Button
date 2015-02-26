@@ -163,7 +163,7 @@ function lightshop_button_node_view($node, $view_mode, $langcode) {
                 //это поле типа коллекция
                 if(variable_get('lbs_' . $node->type . '_FSETTINGS_' . $field_name, 0) == 1) {
                     $coll_field = $node->$field_name;
-                    if (count($coll_field['und']) > 0) {
+                    if ((isset($coll_field['und'])) && (count($coll_field['und']) > 0)) {
                         $indexes = array_keys($coll_field['und']);
                         foreach ($indexes as $ind) {
 							if($node->content[$field_name]['#formatter'] == 'field_collection_table_view') {
@@ -388,4 +388,14 @@ function lightshop_button_theme_registry_alter(&$theme_registry) {
 
     $theme_registry['lightshop_block_display']['preprocess functions'][] = 'template_preprocess_lightshop_button_block_display';
     $theme_registry['lightshop_block_display']['includes'][] = drupal_get_path('module', 'lightshop_button') . '/theme/theme.inc';
+}
+
+
+/**
+ * Implements hook_form_alter().
+ */
+function lightshop_button_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id == LIGHTSHOP_ORDER_NODETYPE . '_node_form' && empty($form['nid']['#value'])) {
+    $form['order_mail']['#required'] = FALSE;
+  }
 }

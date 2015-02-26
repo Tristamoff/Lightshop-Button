@@ -14,11 +14,15 @@ function theme_lightshop_button_items_table($vars) {
         if (isset($rows[$nid]['coll_ids'])) {
             foreach ($rows[$nid]['coll_ids'] as $coll_id => $prod_count) {
                 $coll = field_collection_item_load($coll_id);
-                $ren = $coll->view('full');
-                $ren = render($ren);
-                $rows[$nid . '_' . $coll_id] = $r;
-                $rows[$nid . '_' . $coll_id]['qty'] = $prod_count;
-                $rows[$nid . '_' . $coll_id]['title'] .= $ren;
+								if($coll) {
+					$ren = $coll->view('full');
+					$ren = render($ren);
+					$rows[$nid . '_' . $coll_id] = $r;
+					$rows[$nid . '_' . $coll_id]['qty'] = $prod_count;
+					$rows[$nid . '_' . $coll_id]['title'] .= $ren;
+				} else{
+					drupal_set_message('Not isset collection:' . $coll_id);
+				}
                 unset($rows[$nid . '_' . $coll_id]['coll_ids']);
             }
             unset($rows[$nid]);
